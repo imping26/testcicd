@@ -1,43 +1,74 @@
-name: Deploy React App to GitHub Pages
+name: Deploy to GitHub Pages
 
+# 这条流水线只在代码【已经进入 main】之后跑，负责发布。
 on:
   push:
-    branches: [ "main" ] # 当 main 分支有提交时自动触发
+    branches: ["main"]
+  workflow_dispatch: # 允许你在 Actions 页面手动点一下就重新部署
 
+# 官方 Pages 部署需要这三个权限：
 permissions:
-  contents: write # 赋予配置打包产物分支的写权限
+  contents: read # 读代码
+  pages: write # 写 Pages
+  id-token: write # 用 OIDC 身份验证，不再需要手动传 token
+
+# 避免两次部署同时进行把线上搞乱。注意这里 cancel-in-progress 是 false：
+# 部署不能中途取消，否则线上可能停在半成品状态。
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  # 第一个 job：构建，产出 artifact
+  build:
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 拉取代码
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. 安装 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
 
-      # 3. 安装依赖
       - name: Install Dependencies
         run: npm ci
 
-      # 4. 代码检查 (如无需检查可删掉这行)
-      - name: Lint Code
+      # 这里再跑一遍 lint/test，是故意的：
+      # 万一有人绕过 PR 直接 push 到 main，这是最后一道防线。
+      - name: Lint
         run: npm run lint
 
-      # 5. 打包构建
-      - name: Build Project
+      - name: Test
+        run: npm run test
+
+      - name: Build
         run: npm run build
 
-      # 6. 部署静态文件到 gh-pages 分支
-      - name: Deploy to GitHub Pages
-        uses: Peaceiris/actions-gh-pages@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 把 dist/ 打包成一个 artifact 交给下一个 job，不再 commit 到 gh-pages 分支
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          path: ./dist
+
+  # 第二个 job：部署。needs: build 表示必须等 build 成功才开始。
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+
+    # 声明成 environment 后，GitHub 会记录每次部署历史，可以看到线上是哪个版本、能回滚
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
