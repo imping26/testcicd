@@ -1,0 +1,44 @@
+name: CI
+
+# 关键区别：这条流水线在「PR 被提出来」的时候跑，也就是【合并之前】。
+# 它只做检查，不做任何部署。目的是在坏代码进入 main 之前把它拦住。
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read # 只检查、不写东西，所以只要读权限
+
+# 同一个 PR 连续 push 多次时，自动取消上一次还在跑的检查，省时间省额度
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint / Test / Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # 注意是 `vitest run` 而不是 `vitest`。
+      # `vitest` 是 watch 模式，在 CI 里会永远挂着不退出，直到超时。
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
