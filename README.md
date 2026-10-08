@@ -71,7 +71,9 @@ The ruleset targets **the default branch only**. An earlier attempt targeted all
 
 ## What this pipeline deliberately does *not* have
 
-Decisions about what to leave out matter as much as what to include.
+Decisions about what to leave out matter as much as what to include. The reasoning behind these
+and other choices — including the ones that turned out to be wrong — is recorded in
+[`DECISIONS.md`](./DECISIONS.md).
 
 **No staging environment.** Staging exists so that someone — QA, a product owner, a client — can verify a release candidate against something close to production before it goes live. This project has one user and no acceptance step, so a staging environment would add hosting, configuration, and a promotion step while solving nothing. For a team project with real users I would add one, most likely as a separate branch deploying to its own URL, since Vite bakes environment variables into the bundle at build time and the same artifact generally can't be reused across environments.
 
