@@ -36,4 +36,52 @@ describe('App', () => {
 
     expect(button).toHaveTextContent('Count is 3')
   })
+
+  describe('Reset 按钮', () => {
+    it('渲染出 Reset 按钮', () => {
+      render(<App />)
+      expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument()
+    })
+
+    it('点 Reset 之后计数归零', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+
+      const counter = screen.getByRole('button', { name: /count is/i })
+      const reset = screen.getByRole('button', { name: 'Reset' })
+
+      // 先加到 3，确认它真的变了（不然下面归零可能是假阳性）
+      await user.click(counter)
+      await user.click(counter)
+      await user.click(counter)
+      expect(counter).toHaveTextContent('Count is 3')
+
+      await user.click(reset)
+      expect(counter).toHaveTextContent('Count is 0')
+    })
+
+    it('计数本来就是 0 时，点 Reset 还是 0', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+
+      const counter = screen.getByRole('button', { name: /count is/i })
+      await user.click(screen.getByRole('button', { name: 'Reset' }))
+
+      expect(counter).toHaveTextContent('Count is 0')
+    })
+
+    it('Reset 之后还能继续正常计数', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+
+      const counter = screen.getByRole('button', { name: /count is/i })
+      const reset = screen.getByRole('button', { name: 'Reset' })
+
+      await user.click(counter)
+      await user.click(reset)
+      await user.click(counter)
+
+      expect(counter).toHaveTextContent('Count is 1')
+    })
+  })
 })
